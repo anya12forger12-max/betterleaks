@@ -131,6 +131,14 @@ Validation verifies whether a detected secret is live by evaluating the rule's
 `validate` Expr expression. By default, validation is disabled. Enable it with
 the `--validation` flag.
 
+Validation expressions have access to `http.get`/`http.post` and to the raw
+secret. When a config is auto-discovered inside a scanned source (for example a
+cloned repository containing `.betterleaks.toml`), its `validate` expressions
+are ignored with a warning: an untrusted repository could otherwise exfiltrate
+every secret it causes the scanner to find. Pass an explicit `--config` with
+your own trusted rules, or add `--validation-allow-config-expr` only when you
+trust the discovered config.
+
 Validation runs asynchronously, and responses are cached in memory so duplicate
 secrets only trigger one network request.
 

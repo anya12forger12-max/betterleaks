@@ -2,6 +2,7 @@ package report
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"unicode/utf8"
 
@@ -270,4 +271,31 @@ func TestMaskSecretMultibyteUTF8(t *testing.T) {
 	if want := string([]rune(secret)[:2]) + "..."; got != want {
 		t.Errorf("got %q want %q", got, want)
 	}
+}
+
+func TestRedactMasksValidationDebugMetadata(t *testing.T) {
+	const secret = "glpat-abcdefghijklmnop"
+	f := Finding{
+		Secret:          secret,
+		ValidationMeta: map[string]any{
+			"req_body": "token=" + secret,
+			"req_url":  "https://example.test/validate?token=" + secret,
+			"nested":   map[string]any{"resp_body": []any{secret, "harmless"}},
+			"count":    3,
+		},
+		ValidationReason: "rejected " + secret,
+	}
+	f.Redact(100)
+
+	assert.NotContains(t, fmt.Sprint(f.ValidationMeta), secret)
+	assert.Equal(t, "token=REDACTED", f.ValidationMeta["req_body"])
+	assert.Equal(t, "https://example.test/validate?token=REDACTED", f.ValidationMeta["req_url"])
+	nested := f.ValidationMeta["nested"].(map[string]any)
+	assert.Equal(t, []any{"REDACTED", "harmless"}, nested["resp_body"])
+	assert.Equal(t, 3, f.ValidationMeta["count"])
+	assert.Equal(t, "rejected REDACTED", f.ValidationReason)
+
+	encoded, err := json.Marshal(f)
+	require.NoError(t, err)
+	assert.NotContains(t, string(encoded), secret)
 }

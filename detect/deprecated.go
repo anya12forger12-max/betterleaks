@@ -144,7 +144,8 @@ func (d *Detector) AddFinding(finding report.Finding) {
 	}
 
 	// check if we should ignore this finding
-	logger := logging.With().Str("finding", finding.Secret).Logger()
+	// Log the rule id only; debug logs must not carry the raw secret.
+	logger := logging.With().Str("rule_id", finding.RuleID).Logger()
 	if _, ok := d.gitleaksIgnore[globalFingerprint]; ok {
 		logger.Debug().
 			Str("fingerprint", globalFingerprint).
