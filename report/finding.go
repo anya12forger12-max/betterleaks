@@ -179,7 +179,16 @@ func (f *Finding) Redact(percent uint) {
 	for k, v := range f.CaptureGroups {
 		f.CaptureGroups[k] = strings.ReplaceAll(v, f.Secret, secret)
 	}
+	originalSecret := f.Secret
 	f.Secret = secret
+
+	// Validation debug metadata can contain the raw secret in request URLs and
+	// bodies. It is serialized into JSON reports, so apply the same redaction
+	// to it as to the finding fields above.
+	if originalSecret != "" && originalSecret != secret {
+		f.ValidationMeta = redactMetaMap(f.ValidationMeta, originalSecret, secret)
+		f.ValidationReason = strings.ReplaceAll(f.ValidationReason, originalSecret, secret)
+	}
 
 	seen := make(map[*RequiredFinding]struct{})
 	for _, set := range f.RequiredSets {
@@ -195,6 +204,43 @@ func (f *Finding) Redact(percent uint) {
 			comp.Match = strings.ReplaceAll(comp.Match, comp.Secret, compSecret)
 			comp.Secret = compSecret
 		}
+	}
+}
+
+// redactMetaMap scrubs the original secret from validation debug metadata,
+// including nested maps and slices. Debug requests commonly echo the token
+// into req_url, req_body and resp_body, all of which end up in reports.
+func redactMetaMap(meta map[string]any, secret, masked string) map[string]any {
+	if len(meta) == 0 {
+		return meta
+	}
+	out := make(map[string]any, len(meta))
+	for key, value := range meta {
+		out[strings.ReplaceAll(key, secret, masked)] = redactMetaValue(value, secret, masked)
+	}
+	return out
+}
+
+func redactMetaValue(value any, secret, masked string) any {
+	switch v := value.(type) {
+	case string:
+		return strings.ReplaceAll(v, secret, masked)
+	case map[string]any:
+		return redactMetaMap(v, secret, masked)
+	case []any:
+		out := make([]any, len(v))
+		for i, item := range v {
+			out[i] = redactMetaValue(item, secret, masked)
+		}
+		return out
+	case []string:
+		out := make([]string, len(v))
+		for i, item := range v {
+			out[i] = strings.ReplaceAll(item, secret, masked)
+		}
+		return out
+	default:
+		return value
 	}
 }
 

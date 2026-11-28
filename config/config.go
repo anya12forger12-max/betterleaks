@@ -684,3 +684,22 @@ func (c *Config) extend(extensionConfig *Config) {
 	// sort to keep extended rules in order
 	sort.Strings(c.OrderedRules)
 }
+
+// StripValidationExpressions removes every per-rule validation expression.
+//
+// A configuration file found inside a scanned source is attacker-controlled.
+// Validation expressions have access to http.post(...) and to finding
+// secrets, so scanning an untrusted checkout could otherwise exfiltrate every
+// detected secret to a host chosen by the repository owner.
+func (c *Config) StripValidationExpressions() int {
+	removed := 0
+	for id, rule := range c.Rules {
+		if rule.ValidateExpr == "" {
+			continue
+		}
+		rule.ValidateExpr = ""
+		c.Rules[id] = rule
+		removed++
+	}
+	return removed
+}

@@ -100,6 +100,7 @@ func init() {
 
 	// Validation flags
 	rootCmd.PersistentFlags().Bool("validation", false, "enable validation of findings against live APIs")
+	rootCmd.PersistentFlags().Bool("validation-allow-config-expr", false, "trust validation expressions from a config discovered inside the scanned source (they can perform arbitrary HTTP requests and exfiltrate secrets)")
 	rootCmd.PersistentFlags().String("validation-status", "", "comma-separated list of validation statuses to include: valid, needs_validation, invalid, revoked, error, unknown, none (none = rules without validation)")
 	rootCmd.PersistentFlags().Duration("validation-timeout", 10*time.Second, "per-request timeout for validation")
 	rootCmd.PersistentFlags().Int("validation-workers", 10, "number of concurrent validation workers")
@@ -231,6 +232,23 @@ func initConfig(source string) {
 		}
 
 		loadedConfig = mustLoadConfigFile(configFile)
+
+		// A config found inside the scan source is attacker-controlled when
+		// scanning an untrusted checkout. Validation expressions can make
+		// arbitrary HTTP requests (including POSTs with finding.Secret in the
+		// body), so they must not be honoured without explicit opt-in.
+		allowExpr, err := rootCmd.Flags().GetBool("validation-allow-config-expr")
+		if err != nil {
+			logging.Fatal().Msg(err.Error())
+		}
+		if !allowExpr {
+			if disabled := loadedConfig.StripValidationExpressions(); disabled > 0 {
+				logging.Warn().
+					Int("rules", disabled).
+					Str("config", configFile).
+					Msg("ignored validation expressions from config discovered in scan source; pass --validation-allow-config-expr to trust it")
+			}
+		}
 	}
 }
 

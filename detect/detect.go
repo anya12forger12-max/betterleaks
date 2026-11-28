@@ -620,7 +620,9 @@ func (d *Detector) Run(ctx context.Context, source sources.Source) iter.Seq[Resu
 // ignore compares a finding against a baseline report or betterleaksignore
 // file entries.
 func (d *Detector) ignore(finding report.Finding) bool {
-	logger := logging.With().Str("finding", finding.Secret).Logger()
+	// Never put the raw secret in log context: debug logs are often shipped
+	// to systems with broader access than the secret store.
+	logger := logging.With().Str("rule_id", finding.RuleID).Logger()
 	path := finding.Attributes[sources.AttrPath]
 	globalFingerprint := fmt.Sprintf("%s:%s:%d", path, finding.RuleID, finding.StartLine)
 
@@ -930,7 +932,7 @@ func (d *Detector) detectFragmentWithRule(fragment sources.Fragment,
 		// move to filter?
 		if !d.IgnoreGitleaksAllow && containsAllowSignature(finding.Line) {
 			logger.Trace().
-				Str("finding", finding.Secret).
+				Str("rule_id", finding.RuleID).
 				Msg("skipping finding: allow signature found")
 			continue
 		}
@@ -1031,7 +1033,7 @@ func (d *Detector) detectFragmentWithRule(fragment sources.Fragment,
 				logger.Warn().Err(err).Msg("global filter eval error")
 			} else if skip {
 				logger.Trace().
-					Str("finding", finding.Secret).
+					Str("rule_id", finding.RuleID).
 					Msg("skipping finding: global filter")
 				continue
 			}
@@ -1046,7 +1048,7 @@ func (d *Detector) detectFragmentWithRule(fragment sources.Fragment,
 				logger.Warn().Err(err).Msg("rule filter eval error")
 			} else if skip {
 				logger.Trace().
-					Str("finding", finding.Secret).
+					Str("rule_id", finding.RuleID).
 					Msg("skipping finding: rule filter")
 				continue
 			}
