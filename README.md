@@ -80,3 +80,14 @@ Secrets scanning can expose credentials that belong to other people. Scan only s
 ## License and credits
 
 MIT License — Copyright (c) 2026 Zachary Rice. See [LICENSE](LICENSE). Upstream development is supported by [Aikido Security](https://www.aikido.dev). All credit for the design and implementation belongs to the authors and contributors of [betterleaks/betterleaks](https://github.com/betterleaks/betterleaks); this repository is a copy, not the canonical upstream.
+
+## Quick start — 1 or 2 commands
+
+```bash
+./setup.sh          # install dependencies
+./setup.sh run      # start the project (when a run target exists)
+```
+
+`setup.sh` detects this repository's build system and installs the right toolchain
+dependencies. Use `./setup.sh test` to run the available checks. If a project has no
+standard run target, the script prints the correct command from the sections above.
